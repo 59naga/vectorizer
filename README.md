@@ -33,3 +33,10 @@ $ python -m SimpleHTTPServer | open "http:localhost:8000/example.html"
 ### 4. できた
 
 <img title="画像はイメージですって日本語おかしくね？" src="https://raw.githubusercontent.com/59naga/vectorizer/master/images/card.png">
+
+## 動かない時
+
+* http://で始まる他所のファイルをsrcに書いた時、vectorizeできへん。
+* だいたいの画像は変換できますが、変換にCanvasを使用しているので、ブラウザによってサポートはマチマチ、筋肉モリモリ、マッチョマンの変態だ。
+
+![コマンドー](https://pbs.twimg.com/media/Bs2VhUACEAAwetH.png "わけがわからないよ")

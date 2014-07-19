@@ -1,3 +1,12 @@
+function Vectorizer(){
+  // @version 0.0.1
+  // @license MIT
+  // @author 59naga 2014-07-19
+}
+Vectorizer.autoReplace=true;
+Vectorizer.createElement=document.createElementNS.bind(document,'http://www.w3.org/2000/svg');
+
+//replaceToSVG runner
 addEventListener('load',function(){
   if(Vectorizer.autoReplace===false){
     return;
@@ -9,13 +18,7 @@ addEventListener('load',function(){
   });
 });
 
-function Vectorizer(){
-  // @version 0.0.1
-  // @license MIT
-  // @author 59naga 2014-07-19
-}
-Vectorizer.autoReplace=true;
-Vectorizer.createElement=document.createElementNS.bind(document,'http://www.w3.org/2000/svg');
+//<img> to <svg> with crispEdges
 Vectorizer.replaceToSVG=function(img){
   Vectorizer.readImageData(img,function(except,imagedata){
     if(except){throw new Error(except)}
@@ -24,67 +27,46 @@ Vectorizer.replaceToSVG=function(img){
     img.parentNode.replaceChild(svg,img);
   });
 }
+
+//CanvasPixelArray to <svg>
 Vectorizer.createSVG=function(imagedata){
   var svg=Vectorizer.createElement('svg');
+
   svg.setAttributeNS(null,'viewBox','0 0 '+imagedata.width+' '+imagedata.height);
   svg.setAttributeNS(null,'shape-rendering','crispEdges');
-  svg.appendChild(Vectorizer.convertToPaths(imagedata));
+  svg.appendChild(Vectorizer.convertToG(imagedata));
+
   return svg;
 }
-Vectorizer.convertToPaths=function(imagedata){
-  var paths=Vectorizer.createElement('g');
 
-  var color_list=Vectorizer.convertToColorAndPoints(imagedata);
-  for(var rgba in color_list){
+//CanvasPixelArray to <g>
+Vectorizer.convertToG=function(imagedata){
+  var g=Vectorizer.createElement('g');
+
+  var color_points=Vectorizer.convertToColorAndPoints(imagedata);
+  for(var rgba in color_points){
     var d=[];
-    var lines=Vectorizer.convertToLines(color_list[rgba]);
+    var lines=Vectorizer.convertToLines(color_points[rgba]);
     lines.forEach(function(line){
       d.push(Vectorizer.convertToD(line));
     });
 
     var attributes={};
     attributes.fill=rgba;
-    attributes.d=d.join('\n');
+    attributes.d=d.join('');
 
     var path=Vectorizer.createElement('path');
     for(var name in attributes){
       var value=attributes[name];
       path.setAttributeNS(null,name,value);
     }
-    paths.appendChild(path);
+    g.appendChild(path);
   }
 
-  return paths;
+  return g;
 }
-// point is...
-// path.setAttributeNS(null,'d','M0,0 h1 v1 h-1 z');
-Vectorizer.convertToD=function(rect){
-  return 'M'+rect.x+','+rect.y+'h'+rect.width+'v'+rect.height+'h-'+rect.width+'Z';
-}
-//merge of horizontal points
-// [{x:1,y:1},{x:2,y:1}] => [{x:1,y:1,width:2,height:1}]
-Vectorizer.convertToLines=function(points){
-  var lines=[];
-  points.forEach(function(point){
-    var left=lines[lines.length-1]|| {};
-    var is_left=left.y===point.y&& (left.x+left.width)===point.x;
-    if(is_left){
-      return left.width++;
-    }
 
-    var rect=new Vectorizer.rect(point);
-    lines.push(rect);
-  });
-  return lines;
-}
-Vectorizer.rect=function(point){
-  return rect={
-    x:point.x,
-    y:point.y,
-    width:1,
-    height:1,
-  }
-}
+//CanvasPixelArray to [{rgba:points},{...}]
 Vectorizer.convertToColorAndPoints=function(imagedata){
   var colors={};
   for(var i=0;i<imagedata.data.length;i+=4){
@@ -105,18 +87,45 @@ Vectorizer.convertToColorAndPoints=function(imagedata){
 
     var x=(i/4)%imagedata.width;
     var y=~~((i/4)/imagedata.width);
-    colors[rgba].push({x:x,y:y});
+    colors[rgba].push(new Vectorizer.point(x,y));
   }
   return colors;
 }
-Vectorizer.loadImageData=function(url,callback){
-  var image=new Image;
-  image.src=url;
-  image.addEventListener('error',callback.bind(image));
-  image.addEventListener('load',function(){
-    Vectorizer.readImageData(image,callback);
-  });
+Vectorizer.point=function(x,y){
+  this.x=x;
+  this.y=y;
 }
+
+//merge of horizontal points
+// [{x:1,y:1},{x:2,y:1}] => [{x:1,y:1,width:2,height:1}]
+Vectorizer.convertToLines=function(points){
+  var lines=[];
+  points.forEach(function(point){
+    var left=lines[lines.length-1]|| {};
+    var is_left=left.y===point.y&& (left.x+left.width)===point.x;
+    if(is_left){
+      return left.width++;
+    }
+
+    var rect=new Vectorizer.rect(point);
+    lines.push(rect);
+  });
+  return lines;
+}
+Vectorizer.rect=function(point){
+  this.x=point.x,
+  this.y=point.y;
+  this.width=1;
+  this.height=1;
+}
+
+//[{rgba:points},{...}] to "d" attribute
+Vectorizer.convertToD=function(rect){
+  //point is path.setAttributeNS(null,'d','M0,0 h1 v1 h-1 z');
+  return 'M'+rect.x+','+rect.y+'h'+rect.width+'v'+rect.height+'h-'+rect.width+'Z';
+}
+
+//localhost doesn't work.
 Vectorizer.readImageData=function(image,callback){
   var canvas=document.createElement('canvas');
   var context=canvas.getContext('2d');
@@ -124,7 +133,6 @@ Vectorizer.readImageData=function(image,callback){
   canvas.height=image.height;
   context.drawImage(image,0,0);
 
-  //localhost doesn't work.
   try{
     var imagedata=context.getImageData(0,0,canvas.width,canvas.height);
     callback(null,imagedata);

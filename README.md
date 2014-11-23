@@ -4,6 +4,7 @@
 
 [動いてるのが見たい](http://jsdo.it/59naga/vectorizer)
 ```bash
+$ git clone https://github.com/59naga/vectorizer.git
 $ cd vectoriser/
 $ python -m SimpleHTTPServer | open "http:localhost:8000/example.html"
 ```

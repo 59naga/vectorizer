@@ -1,9 +1,11 @@
 function Vectorizer(){
-  // @version 0.0.1
+  // @version 0.0.2
   // @license MIT
   // @author 59naga 2014-07-19
 }
 Vectorizer.autoReplace=true;
+Vectorizer.caches={};
+Vectorizer.notFoundSVG='<svg viewBox="0 0 1 1" shape-rendering="crispEdges" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><path d="M0,0h1v1h-1Z" fill="rgba(0,0,0,0.50)"></path></svg>';
 Vectorizer.createElement=document.createElementNS.bind(document,'http://www.w3.org/2000/svg');
 
 //replaceToSVG runner
@@ -20,10 +22,20 @@ addEventListener('load',function(){
 
 //<img> to <svg> with crispEdges
 Vectorizer.replaceToSVG=function(img){
+  if(Vectorizer.caches[img.src]!=null){
+    img.outerHTML=Vectorizer.caches[img.src];
+    return;
+  }
+
   Vectorizer.readImageData(img,function(except,imagedata){
-    if(except){throw new Error(except)}
+    if(except){
+      // img.src='data:image/svg+xml;base64,'+btoa(Vectorizer.notFoundSVG);
+      img.outerHTML=Vectorizer.notFoundSVG;
+      return;
+    }
 
     var svg=Vectorizer.createSVG(imagedata);
+    Vectorizer.caches[img.src]=svg.outerHTML;
     img.parentNode.replaceChild(svg,img);
   });
 }
@@ -131,13 +143,20 @@ Vectorizer.readImageData=function(image,callback){
   var context=canvas.getContext('2d');
   canvas.width=image.width;
   canvas.height=image.height;
-  context.drawImage(image,0,0);
 
+  //やばい画像を描写しようとすると落ちるらしい
   try{
-    var imagedata=context.getImageData(0,0,canvas.width,canvas.height);
-    callback(null,imagedata);
+    context.drawImage(image,0,0);
   }
   catch(except){
-    callback(except);
+    return callback(except);
   }
+  try{
+    var imagedata=context.getImageData(0,0,canvas.width,canvas.height);
+  }
+  catch(except){
+    return callback(except);
+  }
+
+  callback(null,imagedata);
 }

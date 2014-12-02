@@ -1,43 +1,116 @@
 function Vectorizer(){
-  // @version 0.0.2
+  // @version 0.0.4
   // @license MIT
-  // @author 59naga 2014-07-19
+  // @author 59naga 2014-12-02
 }
-Vectorizer.autoReplace=true;
 Vectorizer.caches={};
 Vectorizer.notFoundSVG='<svg viewBox="0 0 1 1" shape-rendering="crispEdges" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><path d="M0,0h1v1h-1Z" fill="rgba(0,0,0,0.50)"></path></svg>';
+Vectorizer.notFoundSVGURL='data:image/svg+xml;base64,'+btoa(Vectorizer.notFoundSVG);
 Vectorizer.createElement=document.createElementNS.bind(document,'http://www.w3.org/2000/svg');
 
-//replaceToSVG runner
+Vectorizer.autoReplace=true;
 addEventListener('load',function(){
   if(Vectorizer.autoReplace===false){
     return;
   }
 
-  var imgs=Array.prototype.slice.call(document.querySelectorAll('img.vectorize'));
-  imgs.forEach(function(img){
-    Vectorizer.replaceToSVG(img);
-  });
+  Vectorizer.convertToSVGAsync('img.vectorize');
 });
 
-//<img> to <svg> with crispEdges
-Vectorizer.replaceToSVG=function(img){
+Vectorizer.convertToSVGAsync=function(selector,callback){
+  var asyncs=[];
+  var imgs=Array.prototype.slice.call(document.querySelectorAll(selector));
+  imgs.forEach(function(img){
+    asyncs.push(function(next){
+      Vectorizer.convertToSVG(img,function(except,dataurl){
+        img.src=dataurl;
+        img.className+=' vectorized';
+        next(null,dataurl);
+      });
+    });
+  });
+
+  var async_i=0;
+  var async_results=[];
+  var next=function(except,result){
+    if(except!=null){
+      return callback&& callback(except,async_results);
+    }
+    if(async_i>0){
+      async_results.push(result);
+    }
+
+    var async=asyncs[async_i++];
+    if(async==null){
+      return callback&& callback(null,async_results);
+    }
+    async(next);
+  }
+  next();
+}
+Vectorizer.convertToSVG=function(img,callback){
+  if(img.className.indexOf('vectorized')>-1){
+    return;
+  }
   if(Vectorizer.caches[img.src]!=null){
-    img.outerHTML=Vectorizer.caches[img.src];
+    callback&& callback(null,Vectorizer.caches[img.src]);
     return;
   }
 
+  var imgActual=new Image;
+  imgActual.src=img.src;//disable css(affected)
+  imgActual.addEventListener('load',function(){
+    Vectorizer.readImageData(imgActual,function(except,imagedata){
+      if(except){
+        return callback&& callback(except);
+      }
+
+      var svg=document.createElement('div').appendChild(Vectorizer.createSVG(imagedata));
+      var dataurl='data:image/svg+xml;base64,'+btoa(svg.parentNode.innerHTML);
+      Vectorizer.caches[img.src]=dataurl;
+      callback&& callback(null,dataurl);
+    });
+  });
+  imgActual.addEventListener('error',function(event){
+      callback&& callback(event,Vectorizer.notFoundSVGURL);
+  });
+}
+
+//<img> to <svg> with crispEdges
+Vectorizer.replaceToSVG=function(img){
   Vectorizer.readImageData(img,function(except,imagedata){
     if(except){
-      // img.src='data:image/svg+xml;base64,'+btoa(Vectorizer.notFoundSVG);
       img.outerHTML=Vectorizer.notFoundSVG;
       return;
     }
 
     var svg=Vectorizer.createSVG(imagedata);
-    Vectorizer.caches[img.src]=svg.outerHTML;
     img.parentNode.replaceChild(svg,img);
   });
+}
+
+//localhost doesn't work.
+Vectorizer.readImageData=function(image,callback){
+  var canvas=document.createElement('canvas');
+  var context=canvas.getContext('2d');
+  canvas.width=image.width;
+  canvas.height=image.height;
+
+  //やばい画像を描写しようとすると落ちるらしい
+  try{
+    context.drawImage(image,0,0);
+  }
+  catch(except){
+    return callback(except);
+  }
+  try{
+    var imagedata=context.getImageData(0,0,canvas.width,canvas.height);
+  }
+  catch(except){
+    return callback(except);
+  }
+
+  callback(null,imagedata);
 }
 
 //CanvasPixelArray to <svg>
@@ -46,6 +119,10 @@ Vectorizer.createSVG=function(imagedata){
 
   svg.setAttributeNS(null,'viewBox','0 0 '+imagedata.width+' '+imagedata.height);
   svg.setAttributeNS(null,'shape-rendering','crispEdges');
+  //for dataurl
+  svg.setAttribute('version','1.1');
+  svg.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  svg.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
   svg.appendChild(Vectorizer.convertToG(imagedata));
 
   return svg;
@@ -135,28 +212,4 @@ Vectorizer.rect=function(point){
 Vectorizer.convertToD=function(rect){
   //point is path.setAttributeNS(null,'d','M0,0 h1 v1 h-1 z');
   return 'M'+rect.x+','+rect.y+'h'+rect.width+'v'+rect.height+'h-'+rect.width+'Z';
-}
-
-//localhost doesn't work.
-Vectorizer.readImageData=function(image,callback){
-  var canvas=document.createElement('canvas');
-  var context=canvas.getContext('2d');
-  canvas.width=image.width;
-  canvas.height=image.height;
-
-  //やばい画像を描写しようとすると落ちるらしい
-  try{
-    context.drawImage(image,0,0);
-  }
-  catch(except){
-    return callback(except);
-  }
-  try{
-    var imagedata=context.getImageData(0,0,canvas.width,canvas.height);
-  }
-  catch(except){
-    return callback(except);
-  }
-
-  callback(null,imagedata);
 }

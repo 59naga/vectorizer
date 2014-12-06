@@ -1,9 +1,8 @@
 function Vectorizer(){
-  // @version 0.0.4
+  // @version 0.0.6
   // @license MIT
-  // @author 59naga 2014-12-02
+  // @author 59naga 2014-12-06
 }
-Vectorizer.caches={};
 Vectorizer.notFoundSVG='<svg viewBox="0 0 1 1" shape-rendering="crispEdges" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><path d="M0,0h1v1h-1Z" fill="rgba(0,0,0,0.50)"></path></svg>';
 Vectorizer.notFoundSVGURL='data:image/svg+xml;base64,'+btoa(Vectorizer.notFoundSVG);
 Vectorizer.createElement=document.createElementNS.bind(document,'http://www.w3.org/2000/svg');
@@ -14,47 +13,26 @@ addEventListener('load',function(){
     return;
   }
 
-  Vectorizer.convertToSVGAsync('img.vectorize');
+  Vectorizer.replaceToSVGAsync('img.vectorize');
 });
 
-Vectorizer.convertToSVGAsync=function(selector,callback){
-  var asyncs=[];
-  var imgs=Array.prototype.slice.call(document.querySelectorAll(selector));
-  imgs.forEach(function(img){
-    asyncs.push(function(next){
-      Vectorizer.convertToSVG(img,function(except,dataurl){
-        img.src=dataurl;
-        img.className+=' vectorized';
-        next(null,dataurl);
-      });
-    });
-  });
+//converting async by img.src
+Vectorizer.convertToSVG=function(img,callback,convertType){
+  convertType= convertType? convertType: '';
 
-  var async_i=0;
-  var async_results=[];
-  var next=function(except,result){
-    if(except!=null){
-      return callback&& callback(except,async_results);
-    }
-    if(async_i>0){
-      async_results.push(result);
-    }
-
-    var async=asyncs[async_i++];
-    if(async==null){
-      return callback&& callback(null,async_results);
-    }
-    async(next);
-  }
-  next();
-}
-Vectorizer.convertToSVG=function(img,callback){
-  if(img.className.indexOf('vectorized')>-1){
+  //converting once
+  if(img.className&& img.className.indexOf('vectorized')>-1){
+    callback&& callback(null,img.src);
     return;
   }
-  if(Vectorizer.caches[img.src]!=null){
-    callback&& callback(null,Vectorizer.caches[img.src]);
-    return;
+  //break converting if has cache
+  var cache=localStorage.getItem(img.src);
+  if(cache){
+    if(convertType=='dataurl'){
+      var dataurl=Vectorizer.getDataURL(cache);
+      return callback&& callback(null,dataurl);
+    }
+    return callback&& callback(null,cache);
   }
 
   var imgActual=new Image;
@@ -65,28 +43,94 @@ Vectorizer.convertToSVG=function(img,callback){
         return callback&& callback(except);
       }
 
-      var svg=document.createElement('div').appendChild(Vectorizer.createSVG(imagedata));
-      var dataurl='data:image/svg+xml;base64,'+btoa(svg.parentNode.innerHTML);
-      Vectorizer.caches[img.src]=dataurl;
-      callback&& callback(null,dataurl);
+      var svgElement=Vectorizer.createSVG(imagedata);
+      var svg=document.createElement('div').appendChild(svgElement).parentNode.innerHTML;
+      localStorage.setItem(img.src,svg);
+
+      if(convertType=='dataurl'){
+        var dataurl=Vectorizer.getDataURL(data);
+        return callback&& callback(null,dataurl);
+      }
+      return callback&& callback(null,svg);
     });
   });
   imgActual.addEventListener('error',function(event){
-      callback&& callback(event,Vectorizer.notFoundSVGURL);
+      return callback&& callback(event,convertType=='dataurl'? Vectorizer.notFoundSVGURL: Vectorizer.notFoundSVG);
   });
 }
 
-//<img> to <svg> with crispEdges
-Vectorizer.replaceToSVG=function(img){
-  Vectorizer.readImageData(img,function(except,imagedata){
-    if(except){
-      img.outerHTML=Vectorizer.notFoundSVG;
-      return;
+//async excecute function queues
+Vectorizer.async=function(queues,callback,ignoreExcept){
+  ignoreExcept= ignoreExcept!=null? ignoreExcept: false;
+
+  var i=0;
+  var next=function(except,result){
+    if(except!=null&&ignoreExcept===false){
+      return callback&& callback(except);
     }
 
-    var svg=Vectorizer.createSVG(imagedata);
-    img.parentNode.replaceChild(svg,img);
+    var async=queues[i++];
+    if(async==null){
+      return callback&& callback(null);
+    }
+    async(next);
+  }
+  next();
+}
+
+//converting async by img.src with selectorAll
+Vectorizer.convertToSVGAsync=function(selector,callback){
+  var queues=[];
+  var imgs=Array.prototype.slice.call(document.querySelectorAll(selector));
+  imgs.forEach(function(img){
+    queues.push(function(next){
+      Vectorizer.convertToSVG(img,function(except,dataurl){
+        img.src=dataurl;
+        if(img.className.indexOf('vectorized')==-1){
+          img.className+=' vectorized';
+        }
+        next(null,dataurl);
+      },'dataurl');
+    });
   });
+  Vectorizer.async(queues,callback,true);
+}
+
+//html string to dataurl
+Vectorizer.getDataURL=function(data,mimetype){
+  mimetype= mimetype!=null? mimetype: 'image/svg+xml';
+  return 'data:'+mimetype+';base64,'+btoa(data);
+}
+
+//replace img element by src attribute with selectorAll
+Vectorizer.replaceToSVGAsync=function(selector,callback){
+  var queues=[];
+  var imgs=Array.prototype.slice.call(document.querySelectorAll(selector));
+  imgs.forEach(function(img){
+    queues.push(function(next){
+      Vectorizer.convertToSVG(img,function(except,svg){
+        if(except){
+          Vectorizer.exchange(img,Vectorizer.notFoundSVG);
+          return next(except);
+        }
+        Vectorizer.exchange(img,svg);
+
+        return next(null,svg);
+      });
+    });
+  });
+  Vectorizer.async(queues,callback,true);
+}
+
+//replace on newChildInnerHTML for oldChild
+Vectorizer.exchange=function(oldChild,newChildInnerHTML){
+  var container=document.createElement('div');
+  container.innerHTML=newChildInnerHTML;
+  var element=container.querySelector('*');
+  if(element&& oldChild.parentNode!=null){
+    oldChild.parentNode.replaceChild(element,oldChild);
+  }
+  return element;
 }
 
 //localhost doesn't work.

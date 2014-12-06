@@ -1,5 +1,5 @@
 function Vectorizer(){
-  // @version 0.0.6
+  // @version 0.0.7
   // @license MIT
   // @author 59naga 2014-12-06
 }
@@ -64,14 +64,16 @@ Vectorizer.async=function(queues,callback,ignoreExcept){
   ignoreExcept= ignoreExcept!=null? ignoreExcept: false;
 
   var i=0;
+  var results=[];
   var next=function(except,result){
+    results.push(result);
     if(except!=null&&ignoreExcept===false){
-      return callback&& callback(except);
+      return callback&& callback(except,results);
     }
 
     var async=queues[i++];
     if(async==null){
-      return callback&& callback(null);
+      return callback&& callback(null,results);
     }
     async(next);
   }
@@ -111,11 +113,11 @@ Vectorizer.replaceToSVGAsync=function(selector,callback){
       Vectorizer.convertToSVG(img,function(except,svg){
         if(except){
           Vectorizer.exchange(img,Vectorizer.notFoundSVG);
-          return next(except);
+          return next(except,null);
         }
-        Vectorizer.exchange(img,svg);
+        var newElement=Vectorizer.exchange(img,svg);
 
-        return next(null,svg);
+        return next(null,newElement);
       });
     });
   });

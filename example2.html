@@ -1,0 +1,202 @@
+<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no"><style>body{-webkit-text-size-adjust:100%}</style>
+
+<script src="vectorizer.js"></script>
+<script src="https://rawgit.com/jnordberg/gif.js/master/dist/gif.js"></script>
+<script src="https://rawgit.com/manaten/misc/master/pixel_util/pixel_util.js"></script>
+<script src="https://rawgit.com/matthieua/WOW/master/dist/wow.js"></script>
+<link rel="stylesheet" href="https://rawgit.com/daneden/animate.css/master/animate.min.css">
+
+<style>
+  *{margin:0;padding:0;}
+  label{
+    display:block;
+    text-align:center;
+  }
+  label>div{
+    width:100%;
+  }
+  figure svg,figure img{
+    visibility:hidden;
+  }
+  label>div.animated svg{
+    visibility:visible;
+  }
+
+  #container{
+    margin:5%;
+    width:90%;
+    height:90%;
+    display:flex;
+  }
+  #container>*{
+    flex:1;
+  }
+
+  input{
+    display:none;
+  }
+  figcaption{
+    list-style-type:none;
+    max-width:16em;
+  }
+  figcaption ol{
+    font-size:0;
+  }
+  figcaption ol li{
+    font-size:initial;
+    display:inline-block;
+    width:1em;
+    height:1em;
+  }
+
+  #nowloading{
+    position:fixed;
+    top:0;
+    width:100%;
+    height:100%;
+    display:table;
+    visibility:hidden;
+  }
+  #nowloading.animated{
+    visibility:visible;
+    color:white;
+    background-color:rgba(0,0,0,.5);
+  }
+  #nowloading>*{
+    width:100%;
+    height:100%;
+    display:table-cell;
+    text-align:center;
+    vertical-align:middle;
+    font-size:xx-large;
+  }
+</style>
+<script>
+var wow=new WOW();
+wow.init();
+
+var edgy=function(){}
+edgy.validateEightbit=function(event){
+  event.preventDefault();
+
+  edgy.image=null;
+  document.querySelector('#nowloading').setAttribute('class','animated');
+
+  var ol=document.querySelector('figcaption ol');
+  if(ol){
+    ol.parentNode.removeChild(ol);
+  }
+
+  //画像ではない、6kバイト以上、ファイル未指定の場合
+  var file=Vectorizer.getFile(event);
+  if(file.not_image || file.not_sixk){
+    var oldElement=document.querySelector('img,label div');
+    var newElement=Vectorizer.exchange(oldElement,Vectorizer.notFoundSVG);
+    return setTimeout(function(){
+      document.querySelector('#nowloading').setAttribute('class','');
+      Vectorizer.wrap(newElement,'wow wobble');
+    },10);
+  }
+
+  //画像がパレットを持たない場合は、gifに変換して返す。それ以外はそのまま返す。
+  if(file.is_eightbit){
+    return Vectorizer.Pixelutil.loadImage(file,function(reuslt){
+      file.has_palette=reuslt.palette.length>0;
+      return Vectorizer.Gif.convertToEightbit(file,edgy.showEightbit);
+    });
+  }
+  return Vectorizer.Gif.convertToEightbit(file,edgy.showEightbit);
+}
+
+edgy.showEightbit=function(except,blob){
+  edgy.image=blob;
+
+  Vectorizer.Pixelutil.loadImage(blob,function(result){
+    var oldElement=document.querySelector('img,label div');
+    var img=new Image;
+    img.src=URL.createObjectURL(blob);
+    oldElement.parentNode.replaceChild(img,oldElement);
+
+    Vectorizer.convertToSVG(img,function(except,svg){
+      var newElement=Vectorizer.exchange(img,svg);
+      return setTimeout(function(){
+        document.querySelector('#nowloading').setAttribute('class','');
+        Vectorizer.wrap(newElement,'wow rubberBand');
+
+        var ol=document.createElement('ol');
+        document.querySelector('figcaption').appendChild(ol);
+        result.palette.forEach(function(color){
+          var li=document.createElement('li');
+          li.setAttribute('style','background-color:#'+color);
+          li.setAttribute('title','#'+color);
+          ol.appendChild(li);
+        });
+        ol.setAttribute('class','animated fadeIn')
+      },100);
+    });
+    console.log(blob,result.palette,result.byteData.length.toLocaleString()+'byte');
+  });
+}
+edgy.uploadEightbit=function(){
+  console.log(edgy.image);
+  if(edgy.image==null){
+    return;
+  }
+  var formdata=new FormData;
+  formdata.append('image',edgy.image);
+
+  var xhr=new XMLHttpRequest;
+  xhr.open('post','./');
+  xhr.send(formdata);
+  xhr.addEventListener('load',function(){
+    var is_uploaded= xhr.response=='success';
+    alert(is_uploaded? 'できた':'できない');
+  });
+  xhr.addEventListener('error',function(){
+    alert('アップロードに失敗しました、何か問題があるもよう');
+  });
+}
+
+addEventListener('dragover',function(event){event.preventDefault()});
+addEventListener('drop',edgy.validateEightbit);
+addEventListener('load',function(event){
+  var img=document.querySelector('img');
+  Vectorizer.Pixelutil.loadImage(img.src,function(result){
+    var ol=document.createElement('ol');
+    document.querySelector('figcaption').appendChild(ol);
+    result.palette.forEach(function(color){
+      var li=document.createElement('li');
+      li.setAttribute('style','background-color:#'+color);
+      li.setAttribute('title','#'+color);
+      ol.appendChild(li);
+    });
+    ol.setAttribute('class','animated fadeIn')
+  });
+  Vectorizer.convertToSVG(img,function(except,svg){
+    var newElement=Vectorizer.exchange(img,svg);
+    Vectorizer.wrap(newElement,'wow rubberBand');
+  });
+
+  var fileElement=document.querySelector('input[type=file]');
+  fileElement.addEventListener('change',edgy.validateEightbit);
+});
+</script>
+
+<article id="nowloading">
+  <section>
+    <p>Now loading...</p>
+  </section>
+</article>
+
+<div id="container">
+  <figure>
+    <label>
+      <img src="images/card.png" alt="">
+      <input type="file">
+      <!-- <button onclick="edgy.uploadEightbit()">うp</button> -->
+    </label>
+  </figure>
+  <figcaption>
+    
+  </figcaption>
+</div>

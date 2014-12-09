@@ -51,7 +51,7 @@ Vectorizer.convertToSVG=function(img,callback,options){
       //1mb超えるくらいでかいと落ちる
     }
 
-    return callback&& callback(null,convertType=='dataurl'? Vectorizer.getDataURL(data): svg);
+    return callback&& callback(null,convertType=='dataurl'? Vectorizer.getDataURL(svg): svg);
   });
 }
 

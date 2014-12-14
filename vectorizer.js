@@ -1,5 +1,5 @@
 function Vectorizer(){
-  // @version 0.2.0
+  // @version 0.2.1
   // @license MIT
   // @author 59naga 2014-12-14
 }

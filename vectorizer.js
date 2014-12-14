@@ -1,5 +1,5 @@
 function Vectorizer(){
-  // @version 0.2.0
+  // @version 0.2.2
   // @license MIT
   // @author 59naga 2014-12-14
 }
@@ -58,7 +58,7 @@ Vectorizer.convertToSVG=function(img,callback,options){
 //converting async by img.src with selectorAll
 Vectorizer.convertToSVGAsync=function(selector,callback){
   var queues=[];
-  var imgs=Array.prototype.slice.call(document.querySelectorAll(selector));
+  var imgs=[].slice.call(document.querySelectorAll(selector));
   imgs.forEach(function(img){
     queues.push(function(next){
       Vectorizer.convertToSVG(img,function(except,dataurl){
@@ -78,7 +78,7 @@ Vectorizer.convertToSVGAsync=function(selector,callback){
 //replace img element by src attribute with selectorAll
 Vectorizer.replaceToSVGAsync=function(selector,callback){
   var queues=[];
-  var imgs=Array.prototype.slice.call(document.querySelectorAll(selector));
+  var imgs=[].slice.call(document.querySelectorAll(selector));
   imgs.forEach(function(img){
     queues.push(function(next){
       Vectorizer.convertToSVG(img,function(except,svg){
@@ -380,6 +380,9 @@ Vectorizer.rect=function(point){
         frame.delays=delay_info.images.map(function(image){
           return image.delay;
         });
+        frame.disposals=delay_info.images.map(function(image){
+          return image.disposal;
+        });
 
         callback(null,frame);
       }
@@ -454,6 +457,10 @@ Vectorizer.rect=function(point){
     var context=canvas.getContext('2d');canvas.width=gify_frame.width;canvas.height=gify_frame.height;
     var image=context.createImageData(gify_frame.width,gify_frame.height);
     for(var i=0;i<gify_frame.length;i++){
+      if(gify_frame.disposals[i]===3){
+        image=context.createImageData(gify_frame.width,gify_frame.height);
+      }
+
       for(var j=0;j<gify_frame.byte;j+=4){
         if(gify_frame.pixels.data[j+3+gify_frame.byte*i]===0){
           continue;

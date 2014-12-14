@@ -1,0 +1,14 @@
+<script src="vectorizer.js"></script>
+<script src="http://jsrun.it/assets/g/F/v/N/gFvNO"></script>
+
+<img src="images/zebra.gif" style="display:none">
+<script>
+addEventListener('load',function(){
+  var img=document.querySelector('img');
+  Vectorizer.Gify.Frame(img.src,function(except,frame){
+    var anime=Vectorizer.createAnime(frame);
+
+    img.parentNode.replaceChild(anime,img);
+  });
+});
+</script>

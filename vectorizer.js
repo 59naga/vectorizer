@@ -1,7 +1,7 @@
 function Vectorizer(){
-  // @version 0.1.0
+  // @version 0.2.0
   // @license MIT
-  // @author 59naga 2014-12-07
+  // @author 59naga 2014-12-14
 }
 Vectorizer.successClass='vectorized';
 Vectorizer.notFoundSVG='<svg viewBox="0 0 1 1" shape-rendering="crispEdges" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><path d="M0,0h1v1h-1Z" fill="rgba(0,0,0,0.50)"></path></svg>';
@@ -87,7 +87,6 @@ Vectorizer.replaceToSVGAsync=function(selector,callback){
       });
     });
   });
-  console.log(imgs,queues);
   Vectorizer.async(queues,callback,true);
 }
 
@@ -213,13 +212,14 @@ Vectorizer.readImageData=function(img,callback){
 Vectorizer.createSVG=function(imagedata){
   var svg=Vectorizer.createElement('svg');
 
-  svg.setAttributeNS(null,'viewBox','0 0 '+imagedata.width+' '+imagedata.height);
   svg.setAttributeNS(null,'shape-rendering','crispEdges');
-  //for dataurl
-  svg.setAttribute('version','1.1');
+  svg.setAttributeNS(null,'version','1.1');
   svg.setAttribute('xmlns','http://www.w3.org/2000/svg');
   svg.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
-  svg.appendChild(Vectorizer.convertToG(imagedata));
+  if(imagedata!=null){
+    svg.setAttributeNS(null,'viewBox','0 0 '+imagedata.width+' '+imagedata.height);
+    svg.appendChild(Vectorizer.convertToG(imagedata)); 
+  }
 
   return svg;
 }
@@ -311,8 +311,9 @@ Vectorizer.rect=function(point){
   this.height=1;
 }
 
-//dependencies gif.js
-  Vectorizer.Gif=function(){}
+  Vectorizer.Gif=function(){
+    //dependencies https://github.com/antimatter15/jsgif
+  }
   Vectorizer.Gif.convertToGIF=function(file,callback){
     var image=new Image;
     image.src=URL.createObjectURL(file);
@@ -341,12 +342,131 @@ Vectorizer.rect=function(point){
     return callback(null,file);
   }
 
-//dependencies pixel_util.js
-  Vectorizer.Pixelutil=function(){}
+  Vectorizer.Pixelutil=function(){
+    //dependencies https://github.com/59naga/misc/tree/patch-1
+  }
   //パレット情報を読む
   Vectorizer.Pixelutil.loadImage=function(file,callback){
     if(file instanceof File|| file instanceof Blob){
       return PixelUtil.read(file,callback);
     }
     return PixelUtil.load(file,callback);
+  }
+
+  Vectorizer.Gify=function(){
+    //dependencies gify-parse, get-pixels via browserify.js
+    // e.g $ browserify -r get-pixels -r gify-parse > browserify.js
+  }
+  Vectorizer.Gify.Frame=function(filename,callback){
+    var frame={};
+
+    var gify=require("gify-parse");
+    var getPixels=require("get-pixels");
+    getPixels(filename,function(except,pixels){
+      frame.pixels=pixels;
+
+      var info=pixels.shape.slice();
+      frame.width=info[1];
+      frame.height=info[2];
+      frame.channel=info[3];
+      frame.byte=frame.width*frame.height*frame.channel;
+      frame.length=info[0];
+
+      var xhr=new XMLHttpRequest;
+      xhr.open('GET',filename,true);
+      xhr.responseType='arraybuffer';
+      xhr.onload=function(){
+        var delay_info=gify.getInfo(xhr.response);
+        frame.delays=delay_info.images.map(function(image){
+          return image.delay;
+        });
+
+        callback(null,frame);
+      }
+      xhr.send();
+    });
+  }
+  Vectorizer.createAnime=function(gify_frame){
+    var anime=Vectorizer.createSVG();
+    anime.setAttributeNS(null,'viewBox','0 0 '+gify_frame.width+' '+gify_frame.height);
+
+    var animeCanvas=Vectorizer.createElement('use');
+    animeCanvas.setAttributeNS(null,'id','anime');
+    animeCanvas.setAttributeNS('http://www.w3.org/1999/xlink','href','');
+    anime.appendChild(animeCanvas);
+
+    var animeFrames=Vectorizer.convertToAnimeFrames(gify_frame);
+    anime.appendChild(animeFrames);
+
+    var animeScript=Vectorizer.createElement('script');
+    animeScript.textContent=animeScriptContent.toString().split('\n').slice(1,-1).join('\n');
+    function animeScriptContent(){
+      new Vectorizer.Anime('#anime','#animeFrames');
+    }
+    anime.appendChild(animeScript);
+
+    return anime;
+  }
+  Vectorizer.Anime=function(animeSelector,framesSelector,listener){
+    var anime=this;
+
+    anime.i=0;
+    anime.serial="A"+(Math.random().toString(36).slice(-8));
+
+    anime.framesElement=document.querySelector(framesSelector);
+    anime.framesElement.setAttribute('style','display:none');
+
+    anime.frames=[].slice.call(anime.framesElement.parentNode.querySelectorAll(framesSelector+'>g'));
+
+    anime.id=nextFrame();
+    function nextFrame(){
+      var frame=anime.frames[anime.i++];
+      if(frame==null){
+        if(listener){
+          listener('ended',anime);
+        }
+
+        anime.i=0;
+        frame=anime.frames[anime.i++];
+        if(frame==null){
+          return;
+        }
+      }
+      
+      var id=frame.getAttribute('id');
+      if(id==null){
+        id=anime.serial+'_'+('0000'+anime.i).slice(-5);
+        frame.setAttribute('id',id);
+      }
+      document.querySelector(animeSelector).setAttributeNS('http://www.w3.org/1999/xlink','href','#'+id);
+      
+      var delay=frame.getAttribute('delay');
+      anime.id=setTimeout(nextFrame,delay);
+    }
+  }
+  Vectorizer.convertToAnimeFrames=function(gify_frame){
+    var animeFrames=Vectorizer.createElement('g');
+    animeFrames.setAttributeNS(null,'id','animeFrames');
+
+    var canvas=document.createElement('canvas');
+    var context=canvas.getContext('2d');canvas.width=gify_frame.width;canvas.height=gify_frame.height;
+    var image=context.createImageData(gify_frame.width,gify_frame.height);
+    for(var i=0;i<gify_frame.length;i++){
+      for(var j=0;j<gify_frame.byte;j+=4){
+        if(gify_frame.pixels.data[j+3+gify_frame.byte*i]===0){
+          continue;
+        }
+
+        image.data[j+0]=gify_frame.pixels.data[gify_frame.byte*i + j+0];
+        image.data[j+1]=gify_frame.pixels.data[gify_frame.byte*i + j+1];
+        image.data[j+2]=gify_frame.pixels.data[gify_frame.byte*i + j+2];
+        image.data[j+3]=gify_frame.pixels.data[gify_frame.byte*i + j+3];
+      }
+
+      var g=Vectorizer.convertToG(image);
+      g.setAttribute('delay',gify_frame.delays[i]);
+      animeFrames.appendChild(g);
+    }
+
+    return animeFrames;
   }

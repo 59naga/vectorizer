@@ -2,7 +2,7 @@
 
 ![こんなんいいよね](example.html.png)
 
-[動いてるのが見たい](http://jsdo.it/59naga/vectorizer)
+[動いてるのが見たい](http://59naga.github.io/vectorizer/)
 ```bash
 $ git clone https://github.com/59naga/vectorizer.git
 $ cd vectoriser/

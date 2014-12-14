@@ -401,49 +401,51 @@ Vectorizer.rect=function(point){
     var animeScript=Vectorizer.createElement('script');
     animeScript.textContent=animeScriptContent.toString().split('\n').slice(1,-1).join('\n');
     function animeScriptContent(){
-      new Vectorizer.Anime('#anime','#animeFrames');
+      new Anime('#anime','#animeFrames');
+      
+      function Anime(animeSelector,framesSelector,listener){
+        var anime=this;
+
+        anime.i=0;
+        anime.serial="A"+(Math.random().toString(36).slice(-8));
+
+        anime.framesElement=document.querySelector(framesSelector);
+        anime.framesElement.setAttribute('style','display:none');
+
+        anime.frames=[].slice.call(anime.framesElement.parentNode.querySelectorAll(framesSelector+'>g'));
+
+        anime.id=nextFrame();
+        function nextFrame(){
+          var frame=anime.frames[anime.i++];
+          if(frame==null){
+            if(listener){
+              listener('ended',anime);
+            }
+
+            anime.i=0;
+            frame=anime.frames[anime.i++];
+            if(frame==null){
+              return;
+            }
+          }
+          
+          var id=frame.getAttribute('id');
+          if(id==null){
+            id=anime.serial+'_'+('0000'+anime.i).slice(-5);
+            frame.setAttribute('id',id);
+          }
+          document.querySelector(animeSelector).setAttributeNS('http://www.w3.org/1999/xlink','href','#'+id);
+          
+          var delay=frame.getAttribute('delay');
+          anime.id=setTimeout(nextFrame,delay);
+        }
+      }
     }
     anime.appendChild(animeScript);
 
     return anime;
   }
-  Vectorizer.Anime=function(animeSelector,framesSelector,listener){
-    var anime=this;
-
-    anime.i=0;
-    anime.serial="A"+(Math.random().toString(36).slice(-8));
-
-    anime.framesElement=document.querySelector(framesSelector);
-    anime.framesElement.setAttribute('style','display:none');
-
-    anime.frames=[].slice.call(anime.framesElement.parentNode.querySelectorAll(framesSelector+'>g'));
-
-    anime.id=nextFrame();
-    function nextFrame(){
-      var frame=anime.frames[anime.i++];
-      if(frame==null){
-        if(listener){
-          listener('ended',anime);
-        }
-
-        anime.i=0;
-        frame=anime.frames[anime.i++];
-        if(frame==null){
-          return;
-        }
-      }
-      
-      var id=frame.getAttribute('id');
-      if(id==null){
-        id=anime.serial+'_'+('0000'+anime.i).slice(-5);
-        frame.setAttribute('id',id);
-      }
-      document.querySelector(animeSelector).setAttributeNS('http://www.w3.org/1999/xlink','href','#'+id);
-      
-      var delay=frame.getAttribute('delay');
-      anime.id=setTimeout(nextFrame,delay);
-    }
-  }
+  
   Vectorizer.convertToAnimeFrames=function(gify_frame){
     var animeFrames=Vectorizer.createElement('g');
     animeFrames.setAttributeNS(null,'id','animeFrames');

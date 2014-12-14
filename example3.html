@@ -7,8 +7,14 @@ addEventListener('load',function(){
   var img=document.querySelector('img');
   Vectorizer.Gify.Frame(img.src,function(except,frame){
     var anime=Vectorizer.createAnime(frame);
+    var a=document.createElement('a');
+    a.setAttribute('href','#')
+    a.addEventListener('click',function(){
+      window.open(Vectorizer.getDataURL(a.innerHTML));
+    });
+    a.appendChild(anime);
 
-    img.parentNode.replaceChild(anime,img);
+    img.parentNode.replaceChild(a,img);
   });
 });
 </script>

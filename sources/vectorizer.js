@@ -1,7 +1,7 @@
 function Vectorizer(){
-//             0.2.4            @version  
+//             0.2.5            @version  
 //             MIT              @license
-//             2014-12-14    by @horse_n_deer
+//             2014-12-16    by @horse_n_deer
 }
 Vectorizer.successClass='vectorized';
 Vectorizer.notFoundSVG='<svg viewBox="0 0 1 1" shape-rendering="crispEdges" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><path d="M0,0h1v1h-1Z" fill="rgba(0,0,0,0.50)"></path></svg>';
@@ -113,8 +113,11 @@ Vectorizer.getFile=function(event){
 }
 
 //html string to dataurl
-Vectorizer.getDataURL=function(data,mimetype){
+Vectorizer.getDataURL=function(data,mimetype,escapeAmpersand){
   mimetype= mimetype!=null? mimetype: 'image/svg+xml';
+  if(escapeAmpersand!=null){
+    data=data.replace(/&&/g,'&amp;&amp;')
+  }
   return 'data:'+mimetype+';base64,'+btoa(data);
 }
 

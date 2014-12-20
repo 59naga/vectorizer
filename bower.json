@@ -1,0 +1,26 @@
+{
+  "name": "vectorizer",
+  "main": "./vectorizer.js",
+  "version": "0.0.1",
+  "homepage": "https://github.com/59naga/vectorizer",
+  "authors": [
+    "59naga <i59naga@icloud.com>"
+  ],
+  "description": "<img src=\"pixel-art\"> to <svg> converter(like a nearest-neighbor)",
+  "keywords": [
+    "pixel-art",
+    "svg",
+    "canvasPixelArray",
+    "get-pixels",
+    "gify-parse",
+    "browserify"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}

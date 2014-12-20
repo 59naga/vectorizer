@@ -1,0 +1,27 @@
+{
+  "name": "vectorizer",
+  "version": "0.2.5",
+  "description": "<img src=\"pixel-art\"> to <svg> converter(like a nearest-neighbor)",
+  "main": "./vectorizer.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/59naga/vectorizer.git"
+  },
+  "keywords": [
+    "pixel-art",
+    "svg",
+    "canvasPixelArray",
+    "get-pixels",
+    "gify-parse",
+    "browserify"
+  ],
+  "author": "59naga",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/59naga/vectorizer/issues"
+  },
+  "homepage": "https://github.com/59naga/vectorizer"
+}
